@@ -169,7 +169,7 @@ client.on('interactionCreate', async interaction => {
         const button = new ButtonBuilder()
           .setLabel('Dəstək Serveri / Sayt')
           .setStyle(ButtonStyle.Link)
-          .setURL(`http://localhost:${PORT}`);
+          .setURL(`https://dc-h62r.onrender.com/:${PORT}`);
 
         const row1 = new ActionRowBuilder().addComponents(selectMenu);
         const row2 = new ActionRowBuilder().addComponents(button);
