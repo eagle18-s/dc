@@ -300,15 +300,6 @@ client.on('messageCreate', async (message) => {
 
 //dəstək 
 
-const { 
-    EmbedBuilder, 
-    ActionRowBuilder, 
-    StringSelectMenuBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    ChannelType, 
-    PermissionFlagsBits 
-} = require('discord.js');
 
 // 1. /dəstək əmrini və ya mesajını dinləyən hissə
 client.on('messageCreate', async (message) => {
