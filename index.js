@@ -6,7 +6,9 @@ const {
   ButtonBuilder, 
   ButtonStyle, 
   StringSelectMenuBuilder,
-  PermissionsBitField
+  PermissionsBitField,
+  ChannelType, 
+  PermissionFlagsBits 
 } = require('discord.js');
 const express = require('express');
 const axios = require('axios');
@@ -24,6 +26,7 @@ function addLog(message, type = 'INFO') {
   const timestamp = new Date().toISOString();
   botLogs.unshift({ timestamp, type, message });
   if (botLogs.length > 50) botLogs.pop(); // Son 50 logu saxlayırıq
+  console.log(`[${type}] ${timestamp} - ${message}`);
 }
 
 // Estetik Dashboard / Sayt
@@ -85,50 +88,51 @@ app.listen(PORT, () => {
 // ==========================================
 // 2. DISCORD BOT KODU
 // ==========================================
-const { 
-  Client, 
-  GatewayIntentBits, 
-  EmbedBuilder, 
-  ActionRowBuilder, 
-  StringSelectMenuBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  PermissionsBitField, 
-  ChannelType, 
-  PermissionFlagsBits 
-} = require('discord.js');
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
-
-// Log funksiyasının təyini (əgər kodunuzda başqa yerdə yoxdursa xəta verməməsi üçün)
-function addLog(message, type = 'INFO') {
-  console.log(`[${type}] ${new Date().toISOString()} - ${message}`);
-}
 
 client.once('ready', () => {
   addLog(`Bot uğurla daxil oldu: ${client.user.tag}`, 'INFO');
   
-  // Əmrləri (Slash Commands) qeydiyyatdan keçirmək
+  // Əmrlərin (Slash Commands) qeydiyyatdan keçirilməsi
   const commands = [
     {
       name: 'kömək',
       description: 'Bütün əmrləri və menyunu göstərir'
     },
     {
+      name: 'ping',
+      description: 'Botun gecikmə (ping) müddətini göstərir'
+    },
+    {
       name: 'insta',
-      description: 'İnstagram hesabı haqqında rəsmi məlumatı göstərir',
+      description: 'İnstagram hesabı haqqında məlumatı göstərir',
       options: [{
         name: 'istifadəçi',
         type: 3, // STRING
         description: 'İnstagram istifadəçi adı',
         required: true
       }]
+    },
+    {
+      name: 'userinfo',
+      description: 'Etiketlənən istifadəçi haqqında məlumat verir',
+      options: [{
+        name: 'istifadəçi',
+        type: 6, // USER
+        description: 'Məlumatı alınacaq istifadəçi',
+        required: false
+      }]
+    },
+    {
+      name: 'serverinfo',
+      description: 'Server haqqında ətraflı məlumat göstərir'
     },
     {
       name: 'sil',
@@ -167,6 +171,13 @@ client.on('interactionCreate', async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
       const { commandName } = interaction;
+
+      // PİNG ƏMRİ
+      if (commandName === 'ping') {
+        const ping = client.ws.ping;
+        await interaction.reply({ content: `Pong! 🏓 Gecikmə müddəti: **${ping}ms**`, ephemeral: true });
+        addLog(`${interaction.user.tag} /ping əmrini işlətdi.`, 'INFO');
+      }
 
       // KÖMƏK ƏMRİ
       if (commandName === 'kömək') {
@@ -219,6 +230,40 @@ client.on('interactionCreate', async interaction => {
         addLog(`${interaction.user.tag} /insta @${username} sorğusu etdi.`, 'INFO');
       }
 
+      // USERİNFO ƏMRİ
+      if (commandName === 'userinfo') {
+        const target = interaction.options.getUser('istifadəçi') || interaction.user;
+        const member = interaction.guild.members.cache.get(target.id);
+
+        const embed = new EmbedBuilder()
+          .setTitle(`👤 İstifadəçi Məlumatı: ${target.tag}`)
+          .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+          .addFields(
+            { name: 'İD', value: target.id, inline: true },
+            { name: 'Qoşulma Tarixi', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
+            { name: 'Hesab Yaradılma', value: `<t:${Math.floor(target.createdTimestamp / 1000)}:R>`, inline: true }
+          )
+          .setColor('#5865F2');
+
+        await interaction.reply({ embeds: [embed] });
+      }
+
+      // SERVERİNFO ƏMRİ
+      if (commandName === 'serverinfo') {
+        const guild = interaction.guild;
+        const embed = new EmbedBuilder()
+          .setTitle(`📊 Server Məlumatı: ${guild.name}`)
+          .setThumbnail(guild.iconURL({ dynamic: true }))
+          .addFields(
+            { name: 'Sahib', value: `<@${guild.ownerId}>`, inline: true },
+            { name: 'Üzv Sayı', value: `${guild.memberCount}`, inline: true },
+            { name: 'Yaradılma Tarixi', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:R>`, inline: true }
+          )
+          .setColor('#3b82f6');
+
+        await interaction.reply({ embeds: [embed] });
+      }
+
       // MODERASİYA: SIL
       if (commandName === 'sil') {
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
@@ -263,6 +308,30 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ embeds: [embed] });
         addLog(`${target.tag} istifadəçisi ${interaction.user.tag} tərəfindən ban olundu.`, 'WARN');
       }
+
+      // MODERASİYA: KICK
+      if (commandName === 'kick') {
+        if (!interaction.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
+          return interaction.reply({ content: '❌ Bu əmri istifadə etmək üçün `Üzvləri At` icazəniz yoxdur.', ephemeral: true });
+        }
+
+        const target = interaction.options.getUser('istifadəçi');
+        const reason = interaction.options.getString('səbəb') || 'Səbəb göstərilməyib';
+        const member = interaction.guild.members.cache.get(target.id);
+
+        await member.kick(reason);
+
+        const embed = new EmbedBuilder()
+          .setTitle('👢 İstifadəçi Serverdən Çıxarıldı')
+          .addFields(
+            { name: 'İstifadəçi', value: `${target.tag}`, inline: true },
+            { name: 'Səbəb', value: reason, inline: true }
+          )
+          .setColor('#FEE75C');
+
+        await interaction.reply({ embeds: [embed] });
+        addLog(`${target.tag} istifadəçisi ${interaction.user.tag} tərəfindən kick olundu.`, 'WARN');
+      }
     }
 
     // SELECT MENU QARŞILIĞI (Kömək menyusu)
@@ -278,7 +347,7 @@ client.on('interactionCreate', async interaction => {
       } else if (selected === 'info_cmds') {
         const infoEmbed = new EmbedBuilder()
           .setTitle('ℹ️ İnformasiya Əmrləri')
-          .setDescription('• `/kömək` - Kömək menyusunu açır.\n• `/insta [istifadəçi]` - İnstagram profil linkini və məlumatını verir.')
+          .setDescription('• `/kömək` - Kömək menyusunu açır.\n• `/insta [istifadəçi]` - İnstagram profil linkini verir.\n• `/ping` - Botun gecikmə sürətini yoxlayır.\n• `/userinfo` - İstifadəçi məlumatlarını göstərir.\n• `/serverinfo` - Server məlumatlarını göstərir.')
           .setColor('#5865F2');
         await interaction.update({ embeds: [infoEmbed] });
       }
@@ -291,7 +360,7 @@ client.on('interactionCreate', async interaction => {
 
       const existingChannel = guild.channels.cache.find(c => c.name === `ticket-${interaction.user.username.toLowerCase()}`);
       if (existingChannel) {
-        return interaction.reply({ content: `Sizin artıq açıq biletiniz var: ${existingChannel}`, flags: 64 });
+        return interaction.reply({ content: `Sizin artıq açıq biletiniz var: ${existingChannel}`, ephemeral: true });
       }
 
       const ticketChannel = await guild.channels.create({
@@ -323,7 +392,7 @@ client.on('interactionCreate', async interaction => {
       const row = new ActionRowBuilder().addComponents(closeButton);
 
       await ticketChannel.send({ content: `${interaction.user}`, embeds: [ticketEmbed], components: [row] });
-      await interaction.reply({ content: `Dəstək kanalınız yaradıldı: ${ticketChannel}`, flags: 64 });
+      await interaction.reply({ content: `Dəstək kanalınız yaradıldı: ${ticketChannel}`, ephemeral: true });
     }
 
     // TICKET BAĞLAMA DÜYMƏSİ
@@ -340,24 +409,16 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Bütün messageCreate hadisələrini tək bir blokda birləşdirdik
+// Mesaj hadisələri
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  // 1. Robot reaksiyası və DM
-  try {
-    await message.react('🤖');
-    await message.author.send('BOT');
-  } catch (error) {
-    console.error('DM göndərilərkən və ya reaksiya qoyularkən xəta yarandı:', error);
-  }
-
-  // 2. Salam cavabı (+salam)
+  // Salam cavabı (+salam)
   if (message.content.toLowerCase() === '+salam') {
     await message.reply(`Aleykum salam, ${message.author}! Serverimizə xoş gəldin! 👋`);
   }
 
-  // 3. Dəstək əmri (/dəstək və ya !dəstək)
+  // Dəstək əmri (/dəstək və ya !dəstək)
   if (message.content.toLowerCase() === '/dəstək' || message.content.toLowerCase() === '!dəstək') {
     const embed = new EmbedBuilder()
       .setTitle('🛠️ Dəstək Mərkəzi')
@@ -385,5 +446,6 @@ const TOKEN = process.env.DISCORD_TOKEN;
 if (TOKEN) {
   client.login(TOKEN);
 } else {
-  addLog('DISCORD_TOKEN mühit dəyişəni (Environment Variable) tapılmadı!', 'ERROR');
-}
+  addLog('DISCORD_TOKEN mühit dəyişəni tapılmadı!', 'ERROR');
+                                            }
+  
