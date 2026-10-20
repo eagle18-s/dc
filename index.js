@@ -272,6 +272,24 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+//🤖 robot
+client.on('messageCreate', async (message) => {
+    // Botun öz mesajlarına və ya digər botlara reaksiya verməməsi üçün:
+    if (message.author.bot) return;
+
+    try {
+        // Mesaja 🤖 reaksiyası əlavə edir
+        await message.react('🤖');
+
+        // Mesajı yazan şəxsin DM-inə "BOT" yazır
+        await message.author.send('BOT');
+    } catch (error) {
+        console.error('DM göndərilərkən və ya reaksiya qoyularkən xəta yarandı:', error);
+    }
+});
+
+
+
 // Bot Tokeni ilə giriş
 const TOKEN = process.env.DISCORD_TOKEN;
 if (TOKEN) {
