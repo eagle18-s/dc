@@ -85,6 +85,19 @@ app.listen(PORT, () => {
 // ==========================================
 // 2. DISCORD BOT KODU
 // ==========================================
+const { 
+  Client, 
+  GatewayIntentBits, 
+  EmbedBuilder, 
+  ActionRowBuilder, 
+  StringSelectMenuBuilder, 
+  ButtonBuilder, 
+  ButtonStyle, 
+  PermissionsBitField, 
+  ChannelType, 
+  PermissionFlagsBits 
+} = require('discord.js');
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -92,6 +105,11 @@ const client = new Client({
     GatewayIntentBits.MessageContent
   ]
 });
+
+// Log funksiyasının təyini (əgər kodunuzda başqa yerdə yoxdursa xəta verməməsi üçün)
+function addLog(message, type = 'INFO') {
+  console.log(`[${type}] ${new Date().toISOString()} - ${message}`);
+}
 
 client.once('ready', () => {
   addLog(`Bot uğurla daxil oldu: ${client.user.tag}`, 'INFO');
@@ -247,146 +265,120 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
-    // SELECT MENU QARŞILIĞI
-    if (interaction.isStringSelectMenu()) {
-      if (interaction.customId === 'help_menu') {
-        const selected = interaction.values[0];
+    // SELECT MENU QARŞILIĞI (Kömək menyusu)
+    if (interaction.isStringSelectMenu() && interaction.customId === 'help_menu') {
+      const selected = interaction.values[0];
 
-        if (selected === 'mod_cmds') {
-          const modEmbed = new EmbedBuilder()
-            .setTitle('🛡️ Moderasiya Əmrləri')
-            .setDescription('• `/sil [say]` - Mesajları kütləvi silir.\n• `/ban [istifadəçi] [səbəb]` - Istifadəçini qadağan edir.\n• `/kick [istifadəçi] [səbəb]` - İstifadəçini serverdən çıxarır.')
-            .setColor('#FEE75C');
-          await interaction.update({ embeds: [modEmbed] });
-        } else if (selected === 'info_cmds') {
-          const infoEmbed = new EmbedBuilder()
-            .setTitle('ℹ️ İnformasiya Əmrləri')
-            .setDescription('• `/kömək` - Kömək menyusunu açır.\n• `/insta [istifadəçi]` - İnstagram profil linkini və məlumatını verir.')
-            .setColor('#5865F2');
-          await interaction.update({ embeds: [infoEmbed] });
-        }
+      if (selected === 'mod_cmds') {
+        const modEmbed = new EmbedBuilder()
+          .setTitle('🛡️ Moderasiya Əmrləri')
+          .setDescription('• `/sil [say]` - Mesajları kütləvi silir.\n• `/ban [istifadəçi] [səbəb]` - İstifadəçini qadağan edir.\n• `/kick [istifadəçi] [səbəb]` - İstifadəçini serverdən çıxarır.')
+          .setColor('#FEE75C');
+        await interaction.update({ embeds: [modEmbed] });
+      } else if (selected === 'info_cmds') {
+        const infoEmbed = new EmbedBuilder()
+          .setTitle('ℹ️ İnformasiya Əmrləri')
+          .setDescription('• `/kömək` - Kömək menyusunu açır.\n• `/insta [istifadəçi]` - İnstagram profil linkini və məlumatını verir.')
+          .setColor('#5865F2');
+        await interaction.update({ embeds: [infoEmbed] });
       }
     }
+
+    // TICKET (DƏSTƏK) MENYU SEÇİMİ
+    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
+      const guild = interaction.guild;
+      const categoryValue = interaction.values[0];
+
+      const existingChannel = guild.channels.cache.find(c => c.name === `ticket-${interaction.user.username.toLowerCase()}`);
+      if (existingChannel) {
+        return interaction.reply({ content: `Sizin artıq açıq biletiniz var: ${existingChannel}`, flags: 64 });
+      }
+
+      const ticketChannel = await guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone.id,
+            deny: [PermissionFlagsBits.ViewChannel],
+          },
+          {
+            id: interaction.user.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+          },
+        ],
+      });
+
+      const ticketEmbed = new EmbedBuilder()
+        .setTitle(`🎫 Dəstək Bileti - ${categoryValue.toUpperCase()}`)
+        .setDescription(`Xoş gəldiniz ${interaction.user}! Zəhmət olmasa probleminizi ətraflı yazın. Yetkililər qısa zamanda cavab verəcək.`)
+        .setColor(0x2ecc71);
+
+      const closeButton = new ButtonBuilder()
+        .setCustomId('close_ticket')
+        .setLabel('Ticket-i Bağla')
+        .setStyle(ButtonStyle.Danger)
+        .setEmoji('🔒');
+
+      const row = new ActionRowBuilder().addComponents(closeButton);
+
+      await ticketChannel.send({ content: `${interaction.user}`, embeds: [ticketEmbed], components: [row] });
+      await interaction.reply({ content: `Dəstək kanalınız yaradıldı: ${ticketChannel}`, flags: 64 });
+    }
+
+    // TICKET BAĞLAMA DÜYMƏSİ
+    if (interaction.isButton() && interaction.customId === 'close_ticket') {
+      await interaction.reply({ content: 'Bu bilet 5 saniyə sonra bağlanır və silinir...' });
+      
+      setTimeout(() => {
+        interaction.channel.delete().catch(console.error);
+      }, 5000);
+    }
+
   } catch (err) {
     addLog(`Xəta baş verdi: ${err.message}`, 'ERROR');
   }
 });
 
-//🤖 robot
+// Bütün messageCreate hadisələrini tək bir blokda birləşdirdik
 client.on('messageCreate', async (message) => {
-    // Botun öz mesajlarına və ya digər botlara reaksiya verməməsi üçün:
-    if (message.author.bot) return;
+  if (message.author.bot) return;
 
-    try {
-        // Mesaja 🤖 reaksiyası əlavə edir
-        await message.react('🤖');
+  // 1. Robot reaksiyası və DM
+  try {
+    await message.react('🤖');
+    await message.author.send('BOT');
+  } catch (error) {
+    console.error('DM göndərilərkən və ya reaksiya qoyularkən xəta yarandı:', error);
+  }
 
-        // Mesajı yazan şəxsin DM-inə "BOT" yazır
-        await message.author.send('BOT');
-    } catch (error) {
-        console.error('DM göndərilərkən və ya reaksiya qoyularkən xəta yarandı:', error);
-    }
+  // 2. Salam cavabı (+salam)
+  if (message.content.toLowerCase() === '+salam') {
+    await message.reply(`Aleykum salam, ${message.author}! Serverimizə xoş gəldin! 👋`);
+  }
+
+  // 3. Dəstək əmri (/dəstək və ya !dəstək)
+  if (message.content.toLowerCase() === '/dəstək' || message.content.toLowerCase() === '!dəstək') {
+    const embed = new EmbedBuilder()
+      .setTitle('🛠️ Dəstək Mərkəzi')
+      .setDescription('Kömək almaq üçün aşağıdakı menyudan sizə uyğun olan mövzunu seçin.')
+      .setColor(0x3498db)
+      .setFooter({ text: 'Dəstək Sistemi' });
+
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId('ticket_select')
+      .setPlaceholder('Mövzu seçin...')
+      .addOptions([
+        { label: 'Texniki Problem', description: 'Bot və ya serverlə bağlı texniki problem', value: 'tech', emoji: '⚙️' },
+        { label: 'Şikayət və Təklif', description: 'Təklifləriniz və ya şikayətləriniz', value: 'suggest', emoji: '📩' },
+        { label: 'Ümumi Sual', description: 'Digər suallarınız üçün', value: 'general', emoji: '❓' }
+      ]);
+
+    const row = new ActionRowBuilder().addComponents(menu);
+
+    await message.channel.send({ embeds: [embed], components: [row] });
+  }
 });
-
-//Mesaj
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    // Yalnız "+Salam" və ya "+salam" yazıldıqda işləyir
-    if (message.content.toLowerCase() === '+salam') {
-        await message.reply(`Aleykum salam, ${message.author}! Serverimizə xoş gəldin! 👋`);
-    }
-});
-
-//dəstək 
-
-
-// 1. /dəstək əmrini və ya mesajını dinləyən hissə
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    if (message.content.toLowerCase() === '/dəstək' || message.content.toLowerCase() === '!dəstək') {
-        const embed = new EmbedBuilder()
-            .setTitle('🛠️ Dəstək Mərkəzi')
-            .setDescription('Kömək almaq üçün aşağıdakı menyudan sizə uyğun olan mövzunu seçin.')
-            .setColor(0x3498db)
-            .setFooter({ text: 'Dəstək Sistemi' });
-
-        const menu = new StringSelectMenuBuilder()
-            .setCustomId('ticket_select')
-            .setPlaceholder('Mövzu seçin...')
-            .addOptions([
-                { label: 'Texniki Problem', description: 'Bot və ya serverlə bağlı texniki problem', value: 'tech', emoji: '⚙️' },
-                { label: 'Şikayət və Təklif', description: 'Təklifləriniz və ya şikayətləriniz', value: 'suggest', emoji: '📩' },
-                { label: 'Ümumi Sual', description: 'Digər suallarınız üçün', value: 'general', emoji: '❓' }
-            ]);
-
-        const row = new ActionRowBuilder().addComponents(menu);
-
-        await message.channel.send({ embeds: [embed], components: [row] });
-    }
-});
-
-// 2. Menyu seçimi və Düymə kliklərini idarə edən hissə (Interaction Event)
-client.on('interactionCreate', async (interaction) => {
-    
-    // Dropdown menyudan seçim edildikdə
-    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_select') {
-        const guild = interaction.guild;
-        const categoryValue = interaction.values[0];
-
-        // Kanalın artıq mövcudluğunu yoxlamaq
-        const existingChannel = guild.channels.cache.find(c => c.name === `ticket-${interaction.user.username.toLowerCase()}`);
-        if (existingChannel) {
-            return interaction.reply({ content: `Sizin artıq açıq biletiniz var: ${existingChannel}`, flags: 64 });
-        }
-
-        // Yeni Dəstək Kanalı yaradılır
-        const ticketChannel = await guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
-            type: ChannelType.GuildText,
-            permissionOverwrites: [
-                {
-                    id: guild.roles.everyone.id,
-                    deny: [PermissionFlagsBits.ViewChannel], // Hər kəsə bağlayır
-                },
-                {
-                    id: interaction.user.id,
-                    allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages], // Bilet açana icazə verir
-                },
-                // İSTƏSƏNİZ BURAYA MODERATOR ROL ID-SİNİ ƏLAVƏ EDƏ BİLƏRSİNİZ:
-                // { id: '1561730052922675210', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
-            ],
-        });
-
-        const ticketEmbed = new EmbedBuilder()
-            .setTitle(`🎫 Dəstək Bileti - ${categoryValue.toUpperCase()}`)
-            .setDescription(`Xoş gəldiniz ${interaction.user}! Zəhmət olmasa probleminizi ətraflı yazın. Yetkililər qısa zamanda cavab verəcək.`)
-            .setColor(0x2ecc71);
-
-        const closeButton = new ButtonBuilder()
-            .setCustomId('close_ticket')
-            .setLabel('Ticket-i Bağla')
-            .setStyle(ButtonStyle.Danger)
-            .setEmoji('🔒');
-
-        const row = new ActionRowBuilder().addComponents(closeButton);
-
-        await ticketChannel.send({ content: `${interaction.user}`, embeds: [ticketEmbed], components: [row] });
-        await interaction.reply({ content: `Dəstək kanalınız yaradıldı: ${ticketChannel}`, flags: 64 });
-    }
-
-    // "Ticket-i Bağla" düyməsinə basıldıqda
-    if (interaction.isButton() && interaction.customId === 'close_ticket') {
-        await interaction.reply({ content: 'Bu bilet 5 saniyə sonra bağlanır və silinir...' });
-        
-        setTimeout(() => {
-            interaction.channel.delete().catch(console.error);
-        }, 5000);
-    }
-});
-
-
 
 // Bot Tokeni ilə giriş
 const TOKEN = process.env.DISCORD_TOKEN;
