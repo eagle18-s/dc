@@ -288,6 +288,15 @@ client.on('messageCreate', async (message) => {
     }
 });
 
+//Mesaj
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    // Yalnız "+Salam" və ya "+salam" yazıldıqda işləyir
+    if (message.content.toLowerCase() === '+salam') {
+        await message.reply(`Aleykum salam, ${message.author}! Serverimizə xoş gəldin! 👋`);
+    }
+});
 
 
 // Bot Tokeni ilə giriş
