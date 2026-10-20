@@ -364,7 +364,7 @@ client.on('interactionCreate', async (interaction) => {
                     allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages], // Bilet açana icazə verir
                 },
                 // İSTƏSƏNİZ BURAYA MODERATOR ROL ID-SİNİ ƏLAVƏ EDƏ BİLƏRSİNİZ:
-                // { id: 'MODERATOR_ROLE_ID', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+                // { id: '1561730052922675210', allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
             ],
         });
 
