@@ -441,35 +441,21 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Səs qoşulması üçün lazım olan modullar
+// @discordjs/voice modulları
 const { 
   joinVoiceChannel, 
   createAudioPlayer, 
-  createAudioResource, 
-  AudioPlayerStatus 
+  createAudioResource 
 } = require('@discordjs/voice');
 
-// Botun yaradılması
+// Səbit video linkiniz
+const VIDEO_LINK = "https://youtu.be/3ojXHf29M87?si=ymVwxG..."; 
 
-  // Botun yaradılması
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildVoiceStates, // Səs kanalları üçün vacibdir
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
-});
-
-
-// Səbit link və ya videonuzu burada təyin edə bilərsiniz
-const VIDEO_LINK = "https://youtu.be/3ojXHf293M8?si=ymVwxGJc0-7QLNVa"; 
-
+// Komanda və ya hadisə işləyicisi (məsələn, /yayim komandası)
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'yayim') {
-    // İstifadəçinin olduğu səs kanalını yoxlayırıq
     const channel = interaction.member.voice.channel;
 
     if (!channel) {
@@ -486,9 +472,9 @@ client.on('interactionCreate', async interaction => {
 
       await interaction.reply({ content: `✅ Bot **${channel.name}** kanalına qoşuldu və yayım başladı!`, ephemeral: false });
 
-      // Qeyd: Linkdən səs/video oxutmaq üçün createAudioPlayer və createAudioResource istifadə olunur
+      // Səs axınını başlatmaq üçün
       const player = createAudioPlayer();
-      const resource = createAudioResource(VIDEO_LINK); // İstədiyiniz axın linki
+      const resource = createAudioResource(VIDEO_LINK);
 
       connection.subscribe(player);
       player.play(resource);
@@ -499,6 +485,7 @@ client.on('interactionCreate', async interaction => {
     }
   }
 });
+
 
 
 // Bot Tokeni ilə giriş
