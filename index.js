@@ -413,7 +413,7 @@ client.on('interactionCreate', async interaction => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  // Salam cavabı (+salam)
+  // Salam cavabı (salam)
   if (message.content.toLowerCase() === '+salam') {
     await message.reply(`Aleykum salam, ${message.author}! Serverimizə xoş gəldin! 👋`);
   }
@@ -441,38 +441,63 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// @discordjs/voice modulları
+//Salam yayım 
+const { 
+  Client, 
+  GatewayIntentBits, 
+  EmbedBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle, 
+  StringSelectMenuBuilder,
+  PermissionsBitField,
+  ChannelType, 
+  PermissionFlagsBits  
+} = require('discord.js');
+
 const { 
   joinVoiceChannel, 
   createAudioPlayer, 
-  createAudioResource 
+  createAudioResource, 
+  AudioPlayerStatus 
 } = require('@discordjs/voice');
 
-// Səbit video linkiniz
-const VIDEO_LINK = "https://youtu.be/3ojXHf29M87?si=ymVwxG..."; 
+// Botun yaradılması və lazım olan intents-lər
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates, // Səs kanalları üçün vacibdir
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
+});
 
-// Komanda və ya hadisə işləyicisi (məsələn, /yayim komandası)
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+// Yayım üçün video/musiqi linkiniz
+const VIDEO_LINK = "https://youtu.be/3ojXHf293M8?si=ivoaxlMyYGxdbR-H"; 
 
-  if (interaction.commandName === 'yayim') {
-    const channel = interaction.member.voice.channel;
+client.on('ready', () => {
+  console.log(`Bot uğurla işə düşdü: ${client.user.tag}`);
+});
 
-    if (!channel) {
-      return interaction.reply({ content: '❌ İlk öncə hər hansı bir səs kanalına qoşulmalısınız!', ephemeral: true });
-    }
+// Mesaj yazıldıqda `#kanal` adını yoxlayıb qoşulma hissəsi
+client.on('messageCreate', async message => {
+  if (message.author.bot) return;
 
+  // Mesajda hər hansı səs kanalının qeyd olunduğunu yoxlayırıq
+  const voiceChannel = message.mentions.channels.find(channel => channel.type === ChannelType.GuildVoice);
+
+  if (voiceChannel) {
     try {
       // Səs kanalına qoşulma
       const connection = joinVoiceChannel({
-        channelId: channel.id,
-        guildId: interaction.guild.id,
-        adapterCreator: interaction.guild.voiceAdapterCreator,
+        channelId: voiceChannel.id,
+        guildId: message.guild.id,
+        adapterCreator: message.guild.voiceAdapterCreator,
       });
 
-      await interaction.reply({ content: `✅ Bot **${channel.name}** kanalına qoşuldu və yayım başladı!`, ephemeral: false });
+      message.reply(`✅ Uğurla **${voiceChannel.name}** səs kanalına qoşuldum və yayım başladı!`);
 
-      // Səs axınını başlatmaq üçün
+      // Səs axınını/videonu oxutmaq
       const player = createAudioPlayer();
       const resource = createAudioResource(VIDEO_LINK);
 
@@ -481,7 +506,7 @@ client.on('interactionCreate', async interaction => {
 
     } catch (error) {
       console.error(error);
-      await interaction.reply({ content: '❌ Kanala qoşularkən xəta baş verdi!', ephemeral: true });
+      message.reply('❌ Kanala qoşularkən xəta baş verdi!');
     }
   }
 });
