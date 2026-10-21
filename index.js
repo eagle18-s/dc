@@ -450,14 +450,14 @@ const {
 } = require('@discordjs/voice');
 
 // Botun yaradılması
-const client = new Client({
+
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates, // Səs kanalları üçün vacibdir
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
-});
+;
 
 // Səbit link və ya videonuzu burada təyin edə bilərsiniz
 const VIDEO_LINK = "https://youtu.be/3ojXHf293M8?si=ymVwxGJc0-7QLNVa"; 
