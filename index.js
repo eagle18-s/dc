@@ -441,6 +441,63 @@ client.on('messageCreate', async (message) => {
   }
 });
 
+// Səs qoşulması üçün lazım olan modullar
+const { 
+  joinVoiceChannel, 
+  createAudioPlayer, 
+  createAudioResource, 
+  AudioPlayerStatus 
+} = require('@discordjs/voice');
+
+// Botun yaradılması
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildVoiceStates, // Səs kanalları üçün vacibdir
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
+});
+
+// Səbit link və ya videonuzu burada təyin edə bilərsiniz
+const VIDEO_LINK = "https://youtu.be/3ojXHf293M8?si=ymVwxGJc0-7QLNVa"; 
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === 'yayim') {
+    // İstifadəçinin olduğu səs kanalını yoxlayırıq
+    const channel = interaction.member.voice.channel;
+
+    if (!channel) {
+      return interaction.reply({ content: '❌ İlk öncə hər hansı bir səs kanalına qoşulmalısınız!', ephemeral: true });
+    }
+
+    try {
+      // Səs kanalına qoşulma
+      const connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: interaction.guild.id,
+        adapterCreator: interaction.guild.voiceAdapterCreator,
+      });
+
+      await interaction.reply({ content: `✅ Bot **${channel.name}** kanalına qoşuldu və yayım başladı!`, ephemeral: false });
+
+      // Qeyd: Linkdən səs/video oxutmaq üçün createAudioPlayer və createAudioResource istifadə olunur
+      const player = createAudioPlayer();
+      const resource = createAudioResource(VIDEO_LINK); // İstədiyiniz axın linki
+
+      connection.subscribe(player);
+      player.play(resource);
+
+    } catch (error) {
+      console.error(error);
+      await interaction.reply({ content: '❌ Kanala qoşularkən xəta baş verdi!', ephemeral: true });
+    }
+  }
+});
+
+
 // Bot Tokeni ilə giriş
 const TOKEN = process.env.DISCORD_TOKEN;
 if (TOKEN) {
